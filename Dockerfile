@@ -1,97 +1,42 @@
+# From PHP 7.2 FPM based on Alpine Linux
+FROM php:7.2-fpm-alpine
 
-FROM php:7.0-fpm
+# Maintainer
+MAINTAINER ActionSpec, LLC
 
-ENV PHP_EXTRA_CONFIGURE_ARGS --enable-fpm --with-fpm-user=www-data --with-fpm-group=www-data --enable-intl --enable-opcache --enable-zip
+# Install dependencies
+RUN apk --update add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.6/main curl curl-dev 
+RUN apk --update add --no-cache \
+    --repository http://dl-cdn.alpinelinux.org/alpine/edge/main \
+    --repository http://dl-cdn.alpinelinux.org/alpine/edge/community \
+    --repository http://dl-cdn.alpinelinux.org/alpine/v3.6/main \
+      shadow libxml2-dev freetype-dev libpng-dev libjpeg-turbo-dev imagemagick-dev icu-dev openssl-dev gcc g++ autoconf make \
+    && docker-php-ext-configure gd \
+        --with-gd \
+        --with-freetype-dir=/usr/include/ \
+        --with-png-dir=/usr/include/ \
+        --with-jpeg-dir=/usr/include/ \
+    && yes '' | pecl install apcu-5.1.8 \
+    && docker-php-ext-install ctype curl dom gd hash iconv intl json mbstring mysqli opcache pdo pdo_mysql phar posix session simplexml sockets tokenizer xml xmlrpc xmlwriter zip \
+    && docker-php-ext-enable apcu \
+    && apk del gcc g++ autoconf make \
+    && rm -rf /var/cache/apk/*
 
-RUN apt-get update
+# PHP Config
+COPY conf/*.ini /usr/local/etc/php/conf.d/
 
-RUN \
-  apt-get install -y \
-  libcurl4-gnutls-dev \
-  libxml2-dev \
-  libssl-dev
+# Disable access log for php-fpm
+RUN sed -e '/access.log/s/^/;/' -i /usr/local/etc/php-fpm.d/docker.conf
+RUN echo -e "[PHP]\nlog_errors = yes" > /usr/local/etc/php/conf.d/errorlog.ini
 
-RUN \
-    /usr/local/bin/docker-php-ext-install \
-    dom \
-    pcntl \
-    posix
+# Hack to change uid of 'www-data' to 1000
+RUN usermod -u 1000 www-data
 
-# Configure PHP
-# php module build deps
-RUN \
-  apt-get install -y \
-  g++ \
-  autoconf \
-  libbz2-dev \
-  libltdl-dev \
-  libpng12-dev \
-  libjpeg62-turbo-dev \
-  libfreetype6-dev \
-  libxpm-dev \
-  libimlib2-dev \
-  libicu-dev \
-  libmcrypt-dev \
-  libxslt1-dev \
+# Change working directory
+WORKDIR /var/www/html
 
-  re2c \
-  libpng++-dev \
-  libpng3 \
-  libvpx-dev \
-  zlib1g-dev \
-  libgd-dev \
-  libtidy-dev \
-  libmagic-dev \
-  libexif-dev \
-  file \
-  libssh2-1-dev \
-  libjpeg-dev \
-  git \
-  curl \
-  wget \
-  librabbitmq-dev \
-  libzip-dev \
-  libzip2
+# PHP config directory is a volume
+VOLUME /usr/local/etc/php/conf.d/
 
-# http://devdocs.magento.com/guides/v2.0/install-gde/system-requirements.html
-RUN \
-    /usr/local/bin/docker-php-ext-install \
-    pdo \
-    sockets \
-    pdo_mysql \
-    mysqli \
-    mbstring \
-    mcrypt \
-    hash \
-    simplexml \
-    xsl \
-    soap \
-    intl \
-    bcmath \
-    json \
-    opcache \
-    zip
-
-# Make sure the volume mount point is empty
-RUN rm -rf /var/www/html/*
-
-# Set www-data as owner for /var/www
-RUN chown -R www-data:www-data /var/www/
-RUN chmod -R g+w /var/www/
-
-# Create log folders
-RUN mkdir /var/log/php-fpm && \
-    touch /var/log/php-fpm/access.log && \
-    touch /var/log/php-fpm/error.log && \
-    chown -R www-data:www-data /var/log/php-fpm
-
-RUN docker-php-ext-configure gd --with-freetype-dir=/usr --with-jpeg-dir=/usr --with-png-dir=/usr \
-    && docker-php-ext-install gd
-
-# Install xdebug
-RUN cd /tmp/ && git clone https://github.com/xdebug/xdebug.git \
-    && cd xdebug && phpize && ./configure --enable-xdebug && make \
-    && mkdir /usr/lib/php7/ && cp modules/xdebug.so /usr/lib/php7/xdebug.so \
-    && touch /usr/local/etc/php/ext-xdebug.ini \
-    && rm -r /tmp/xdebug \
-    && apt-get purge -y --auto-remove
+# UTF-8 default
+ENV LANG en_US.utf8

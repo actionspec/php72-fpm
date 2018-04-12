@@ -15,7 +15,6 @@ RUN \
     /usr/local/bin/docker-php-ext-install \
     dom \
     pcntl \
-    phar \
     posix
 
 # Configure PHP

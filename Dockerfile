@@ -1,33 +1,7 @@
-# From PHP 7.2 FPM based on Alpine Linux
-FROM php:7.2-fpm-alpine
-
-# Maintainer
-MAINTAINER ActionSpec, LLC
-
-# Install dependencies
-RUN apk --update add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.6/main curl curl-dev 
-RUN apk --update add --no-cache \
-    --repository http://dl-cdn.alpinelinux.org/alpine/edge/main \
-    --repository http://dl-cdn.alpinelinux.org/alpine/edge/community \
-    --repository http://dl-cdn.alpinelinux.org/alpine/v3.6/main \
-      shadow libxml2-dev freetype-dev libpng-dev libjpeg-turbo-dev imagemagick-dev icu-dev openssl-dev gcc g++ autoconf make \
-    && docker-php-ext-configure gd \
-        --with-gd \
-        --with-freetype-dir=/usr/include/ \
-        --with-png-dir=/usr/include/ \
-        --with-jpeg-dir=/usr/include/ \
-    && yes '' | pecl install apcu-5.1.8 \
-    && docker-php-ext-install ctype curl bc-math dom gd hash iconv intl json mbstring mysqli opcache openssl pdo pdo_mysql phar posix session simplexml soap sockets tokenizer xml xmlrpc xmlwriter xsl zip \
-    && docker-php-ext-enable apcu \
-    && apk del gcc g++ autoconf make \
-    && rm -rf /var/cache/apk/*
-
-# Disable access log for php-fpm
-RUN sed -e '/access.log/s/^/;/' -i /usr/local/etc/php-fpm.d/docker.conf
-RUN echo -e "[PHP]\nlog_errors = yes" > /usr/local/etc/php/conf.d/errorlog.ini
+FROM phpdockerio/php72-fpm:latest
 
 
-# UTF-8 default
-ENV LANG en_US.utf8
-
-CMD ["php-fpm"]
+# Install selected extensions and other stuff
+RUN apt-get update \
+    && apt-get -y --no-install-recommends install  php-memcached php7.2-mysql php7.2-pgsql php-redis php-xdebug php7.2-bcmath php7.2-bz2 php7.2-dba php7.2-enchant php7.2-gd php-igbinary php-imagick php7.2-imap php7.2-interbase php7.2-intl php-mongodb php-msgpack php7.2-odbc php7.2-phpdbg php7.2-pspell php-raphf php7.2-recode php7.2-soap php7.2-sybase php-tideways php7.2-tidy php7.2-xmlrpc php7.2-xsl php-yaml php-zmq \
+    && apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*

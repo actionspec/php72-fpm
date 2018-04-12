@@ -22,9 +22,6 @@ RUN apk --update add --no-cache \
     && apk del gcc g++ autoconf make \
     && rm -rf /var/cache/apk/*
 
-# PHP Config
-COPY conf/*.ini /usr/local/etc/php/conf.d/
-
 # Disable access log for php-fpm
 RUN sed -e '/access.log/s/^/;/' -i /usr/local/etc/php-fpm.d/docker.conf
 RUN echo -e "[PHP]\nlog_errors = yes" > /usr/local/etc/php/conf.d/errorlog.ini

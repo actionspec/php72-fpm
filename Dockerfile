@@ -1,7 +1,55 @@
-FROM phpdockerio/php72-fpm:latest
+FROM php:7.0.30-fpm
+
+# install the PHP extensions we need
+RUN set -ex; \
+	\
+	savedAptMark="$(apt-mark showmanual)"; \
+	\
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		libfreetype6-dev \
+        libjpeg62-turbo-dev \
+		libmcrypt-dev \
+		libxml2-dev \
+		libxslt-dev \
+        libpng-dev \
+	; \
+	\
+	docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ --with-png-dir=/usr --with-jpeg-dir=/usr; \
+
+	docker-php-ext-install intl zip xsl iconv gd mysqli pdo_mysql opcache mcrypt soap; \
+	\
+# reset apt-mark's "manual" list so that "purge --auto-remove" will remove all build dependencies
+	apt-mark auto '.*' > /dev/null; \
+	apt-mark manual $savedAptMark; \
+	ldd "$(php -r 'echo ini_get("extension_dir");')"/*.so \
+		| awk '/=>/ { print $3 }' \
+		| sort -u \
+		| xargs -r dpkg-query -S \
+		| cut -d: -f1 \
+		| sort -u \
+		| xargs -rt apt-mark manual; \
+	\
+	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+	rm -rf /var/lib/apt/lists/*
+
+# set recommended PHP.ini settings
+# see https://secure.php.net/manual/en/opcache.installation.php
+RUN { \
+		echo 'opcache.memory_consumption=128'; \
+		echo 'opcache.interned_strings_buffer=8'; \
+		echo 'opcache.max_accelerated_files=4000'; \
+		echo 'opcache.revalidate_freq=2'; \
+		echo 'opcache.fast_shutdown=1'; \
+		echo 'opcache.enable_cli=1'; \
+	} > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
 
-# Install selected extensions and other stuff
-RUN apt-get update \
-    && apt-get -y --no-install-recommends install  php-memcached php7.2-mysql php7.2-pgsql php-redis php-xdebug php7.2-bcmath php7.2-bz2 php7.2-dba php7.2-enchant php7.2-gd php-igbinary php-imagick php7.2-imap php7.2-interbase php7.2-intl php-mongodb php-msgpack php7.2-odbc php7.2-phpdbg php7.2-pspell php-raphf php7.2-recode php7.2-soap php7.2-sybase php-tideways php7.2-tidy php7.2-xmlrpc php7.2-xsl php-yaml php-zmq \
-    && apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+VOLUME /var/www/html
+
+COPY www.conf /usr/local/etc/php-fpm.d/www.conf
+COPY php.ini /usr/local/etc/php/php.ini
+
+EXPOSE 9000
+
+CMD ["php-fpm"]

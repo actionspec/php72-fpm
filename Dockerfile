@@ -12,12 +12,12 @@ RUN set -ex; \
 		libmcrypt-dev \
 		libxml2-dev \
 		libxslt-dev \
-        libpng-dev \
+                libpng-dev \
 	; \
 	\
 	docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ --with-png-dir=/usr --with-jpeg-dir=/usr; \
 
-	docker-php-ext-install intl zip xsl iconv gd mysqli pdo_mysql opcache mcrypt soap; \
+	docker-php-ext-install intl zip xsl iconv gd mysqli pdo_mysql opcache soap; \
 	\
 # reset apt-mark's "manual" list so that "purge --auto-remove" will remove all build dependencies
 	apt-mark auto '.*' > /dev/null; \
